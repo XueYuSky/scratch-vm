@@ -7,7 +7,10 @@ const formatMessage = require('format-message');
 // const comm = require('../../io/serialcomm');
 const Base64Util = require('../../util/base64-util');
 // const Serial = require('serialport')
-const MXSLink = 'ws://localhost:8081';
+// const MXSLink = 'ws://localhost:8081';
+const MXSLink = 'ws://192.168.1.10:8000';
+
+
 
 /**
  * base64 inmage produce : https://www.base64-image.de/
@@ -352,6 +355,7 @@ class Scratch3MutiRotorBlocks {
         this.ws.onopen = this._openSocket;
         this.ws.onclose = this._closeSocket;
         this.ws.onerror = this._errorSocket;
+        this.ws.send = this._sendWsData;
 
         this._sendWsData = this._sendWsData.bind(this);
         this._getWsData = this._getWsData.bind(this);
@@ -1235,8 +1239,8 @@ class Scratch3MutiRotorBlocks {
 
         if (ANGLE <= 0) {
             ANGLE = 0;
-        } else if (ANGLE >= 90) {
-            ANGLE = 90; // °/S为单位
+        } else if (ANGLE >= 180) {
+            ANGLE = 180; // °/S为单位
         } else {
             ANGLE = parseFloat(args.ANGLE);
         }
@@ -1268,8 +1272,8 @@ class Scratch3MutiRotorBlocks {
 
         if (DEGRPS <= 0) {
             DEGRPS = 0;
-        } else if (DEGRPS >= 30) {
-            DEGRPS = 30; // °/s为单位
+        } else if (DEGRPS >= 90) {
+            DEGRPS = 90; // °/s为单位
         } else {
             DEGRPS = parseFloat(args.DEGRPS);
         }
@@ -1444,17 +1448,13 @@ class Scratch3MutiRotorBlocks {
 
     // _sendWsData(cmd, elem, par1, par2 = 0, par3 = 0, par4 = 0) {
     _sendWsData (head, directionlow, type, methods, byteCommands) {
-        //     mils = millis();
-        //     var msg = [SerialOpcode.SerialHead, cmd, elem, par1, par2, par3, par4, END_SYS];
-        //     var computed_crc = crc.compute(msg);
-        //     msg.push(computed_crc >> 8);
-        //     msg.push(computed_crc & 0xFF);
-        //     //console.log( mils, this.lastMillis )
-        //     if (mils - this.lastMillis > 5) {
-        //         this.lastMillis = mils;
-        //         this.ws.send(msg);
-        //         console.log(msg);
-        //     }
+            mils = millis();
+            // var msg = [head, directionlow, type, methods, byteCommands];
+            // var computed_crc = crc.compute(msg);
+            // msg.push(computed_crc >> 8);
+            // msg.push(computed_crc & 0xFF);
+            //console.log( mils, this.lastMillis )
+
         // const byteCommands = []; // a compound command
 
         // byteCommands[0] = 1;
@@ -1469,7 +1469,16 @@ class Scratch3MutiRotorBlocks {
 
             byteCommands, // byte 7
         );
-        this.ws.send(JSON.stringify(cmd));
+
+        if (mils - this.lastMillis > 5) {
+            this.lastMillis = mils;
+            this.ws.send(JSON.stringify(cmd));
+            console.log(msg);
+        }
+        // this.ws.send(JSON.stringify(cmd));
+        // await(1000);
+        
+        // this.ws.send(Bytes2Str(cmd));
     }
     // 字符串转16进制
 
@@ -1478,7 +1487,10 @@ class Scratch3MutiRotorBlocks {
     _getWsData (msg) {
         strDataReceved = '';
         dataArray = '';
-        dataArray = JSON.parse(msg.data);
+        // dataArray = JSON.parse(msg.data);
+
+        dataArray = (msg.data);
+
         strDataArray = new Uint8Array(1024);
         // dataArray = (msg.data);
 
