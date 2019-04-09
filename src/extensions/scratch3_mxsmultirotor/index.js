@@ -1227,16 +1227,16 @@ class Scratch3MutiRotorBlocks {
 
         if (DEGRPS <= 0) {
             DEGRPS = 0;
-        } else if (DEGRPS >= 30) {
-            DEGRPS = 30; // °/s为单位
+        } else if (DEGRPS >= 90) {
+            DEGRPS = 90; // °/s为单位
         } else {
             DEGRPS = parseFloat(args.DEGRPS);
         }
 
         if (ANGLE <= 0) {
             ANGLE = 0;
-        } else if (ANGLE >= 180) {
-            ANGLE = 180; // 分米为单位
+        } else if (ANGLE >= 90) {
+            ANGLE = 90; // °/S为单位
         } else {
             ANGLE = parseFloat(args.ANGLE);
         }
