@@ -2086,7 +2086,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_CTLDATA:
                         {
-                            if (parseInt(strDataArray[3], 16) === 23) {
+                            if (parseInt(strDataArray[3]) == 23) {
                                 CTL_THR = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 CTL_YAW = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                                 CTL_ROL = parseInt((strDataArray[8].toString(16) + strDataArray[9].toString(16)), 16);
@@ -2103,7 +2103,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_GESTURE_SENSOR_STATE:
                         {
-                            if (parseInt(strDataArray[3], 16) === 14) {
+                            if (parseInt(strDataArray[3]) == 14) {
                                 STATE_ACC = parseInt((strDataArray[4].toString(16)), 16);
                                 STATE_GYRO = parseInt((strDataArray[5].toString(16)), 16);
                                 STATE_MAG = parseInt((strDataArray[6].toString(16)), 16);
