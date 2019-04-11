@@ -1,3 +1,8 @@
+/* eslint-disable eqeqeq */
+/* eslint-disable func-style */
+/* eslint-disable no-self-assign */
+/* eslint-disable valid-jsdoc */
+/* eslint-disable require-jsdoc */
 /* eslint-disable no-negated-condition */
 /* eslint-disable no-console */
 const BlockType = require('../../extension-support/block-type');
@@ -9,7 +14,7 @@ const formatMessage = require('format-message');
 const Base64Util = require('../../util/base64-util');
 // const Serial = require('serialport')
 // const MXSLink = 'ws://localhost:8081';
-const MXSLink = 'ws://192.168.1.10:8000';
+const MXSLink = 'ws://192.168.4.1:8000';
 
 
 /**
@@ -28,6 +33,12 @@ const mxsSerialPort = ['None', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', '
 
 const mxsBaudRate = ['115200', '57600', '38400', '19200', '9600', '4800'];
 
+const laserStatus = ['Open', 'Close', 'Blink'];
+
+const throwingStatus = ['Close', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+
+const blinkLedStatus = ['Close', 'Light', 'SlowBlink', 'FastBlink'];
+const blinkLedColor = ['None', 'Red', 'Orange', 'Yellow', 'Green', 'Cyan', 'Blue', 'Purple'];
 /** ***********************************************************************
  * 程序指令定义
  */
@@ -67,19 +78,10 @@ const CMD_Type = {
     CMD_MOTION: 0xA1,
     CMD_SENSE: 0xA2,
     CMD_INTERACTIVE: 0xA3,
-    CMD_CTROL: 0xA4,
+    // 外部挂载模块
+    CMD_MODULE: 0xA4,
     CMD_MATH: 0xA5,
     CMD_EXECUTION: 0xFC
-};
-
-/**
- * 命令执行状态标记
- * 返回数据第8字节
- */
-const CMD_Status = {
-    CMD_EXECUTE_ERROR: 0x00,
-    CMD_EXECUTEING: 0x01,
-    CMD_EXECUTE_OVER: 0x02
 };
 
 /**
@@ -97,7 +99,23 @@ const CMD_METHOD = {
     MOVE_TYPE_TAKEOFFHIGHT: 0x13,
     MOVE_TYPE_LAND: 0x14,
     MOVE_TYPE_YAW_ANGLE: 0x15,
-    MOVE_TYPE_HOVERING: 0x1A
+    MOVE_TYPE_HOVERING: 0x1A,
+
+    OPR_TYPE_LASER: 0x41,
+    OPR_TYPE_THROWING: 0x42,
+    OPR_TYPE_IMGTRANS: 0x43,
+    OPR_TYPE_BLINKLED: 0x44
+
+};
+
+/**
+ * 命令执行状态标记
+ * 返回数据第8字节
+ */
+const CMD_Status = {
+    CMD_EXECUTE_ERROR: 0x00,
+    CMD_EXECUTEING: 0x01,
+    CMD_EXECUTE_OVER: 0x02
 };
 
 /**
@@ -123,6 +141,50 @@ const FLY_DIRECTION = {
 
     DIRECTION_CLOCKWISE: 0xC0,
     DIRECTION_COUNTER_CLOCKWISE: 0xC1
+};
+
+/**
+ * 外部模块操作指令
+ * 第7字节
+ */
+const OPR_LASER = {
+    LASER_CLOSE: 0x00,
+    LASER_OPEN: 0x01,
+    LASER_BLINK: 0x02,
+    LASER_OTHER: 0x03
+};
+
+const OPR_THROWING = {
+    THROWING_CLOSE: 0x00
+    // 该值设为n时，抛投器打开，抛投n次，1<= n <=10
+};
+
+const IMG_TRANS = {
+    IMG_CLOSE: 0x00
+};
+
+/**
+ * LED闪烁状态
+ * 第8字节
+ */
+const BLINKING_LED_STATUS = {
+    CLOSE: 0x00,
+    LIGHT: 0x01,
+    BLINK_SLOW: 0x02,
+    BLINK_FAST: 0x03
+};
+
+const BLINKING_LED_COLOR = {
+    CLOSE: 0x00,
+    RED: 0x01,
+    ORANGE: 0x02,
+    YELLOW: 0x03,
+    GREEN: 0x04,
+    CYAN: 0x05,
+    BLUE: 0x06,
+    PURPLE: 0x07,
+    WHITE: 0x08
+
 };
 
 /** ************************************************
@@ -152,7 +214,6 @@ let PITCH;
 
 
 let ALT_USE;
-
 
 let FLY_MODEL;
 
@@ -261,6 +322,10 @@ let FLOW_LIGHT;
 let POS_X;
 let POS_Y;
 let POS_Z;
+
+let RotorCmdId = '';
+let RotorCmdStatus = '';
+
 let strDataReceved = '';
 
 /** *********************************************************************** */
@@ -471,19 +536,7 @@ class Scratch3MutiRotorBlocks {
                     })
 
                 },
-                {
-                    opcode: 'getLastMessageReceived',
-                    blockType: BlockType.REPORTER,
-                    text: formatMessage({
-                        default: '获取最新消息'
-                        // default: 'get last incoming message: [MESSAGE]',
-                    })
-                    // arguments: {
-                    //     MESSAGE: {
-                    //         type: ArgumentType.STRING,
-                    //     }
-                    // }
-                },
+
                 {
                     opcode: 'takeOff',
                     blockType: BlockType.COMMAND,
@@ -678,29 +731,133 @@ class Scratch3MutiRotorBlocks {
                     }
                     // func: 'yawCcw'
                 },
+
+                /** *******************************************************************
+                 * 下面是外部模块 Blocks
+                 */
                 {
-                    opcode: 'setSpeed',
+                    opcode: 'ctllaser',
                     blockType: BlockType.COMMAND,
 
                     text: formatMessage({
-                        id: 'multirotor.setSpeed',
-                        default: '速度 [SPEED]cm/s'
+                        id: 'multirotor.ctllaser',
+                        default: '[OPR] Laser'
                     }),
                     arguments: {
-                        SPEED: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: 20
+                        OPR: {
+                            type: ArgumentType.STRING,
+                            menu: 'lasercontrol',
+                            // menu: 'baudRate',
+                            defaultValue: 1
                         }
                     }
-                    // func: 'setSpeed'
+                    // func: 'yawCcw'
+                },
+
+                {
+                    opcode: 'ctlthrowing',
+                    blockType: BlockType.COMMAND,
+
+                    text: formatMessage({
+                        id: 'multirotor.ctlthrowing',
+                        default: '[OPR] times throwing'
+                    }),
+                    arguments: {
+                        OPR: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'throwingcontrol',
+                            // menu: 'baudRate',
+                            defaultValue: 0
+                        }
+                    }
+                    // func: 'yawCcw'
+                },
+
+                {
+                    opcode: 'ctltakephoto',
+                    blockType: BlockType.COMMAND,
+
+                    text: formatMessage({
+                        id: 'multirotor.ctlphoto',
+                        default: '[OPR] times phpto'
+                    }),
+                    arguments: {
+                        OPR: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'photocontrol',
+                            // menu: 'baudRate',
+                            defaultValue: 0
+                        }
+                    }
+                    // func: 'yawCcw'
+                },
+
+                {
+                    opcode: 'ctlvideo',
+                    blockType: BlockType.COMMAND,
+
+                    text: formatMessage({
+                        id: 'multirotor.ctlvideo',
+                        default: '[OPR] seconds video'
+                    }),
+                    arguments: {
+                        OPR: {
+                            type: ArgumentType.NUMBER,
+                            // menu: 'videocontrol',
+                            // menu: 'baudRate',
+                            defaultValue: 0
+                        }
+                    }
+                    // func: 'yawCcw'
                 },
                 {
-                    opcode: 'getBattery',
+                    opcode: 'ctlblinkled',
+                    blockType: BlockType.COMMAND,
+
+                    text: formatMessage({
+                        id: 'multirotor.ctlblinkled',
+                        default: '[OPR] [COLOR] LED'
+                    }),
+                    arguments: {
+                        OPR: {
+                            type: ArgumentType.STRING,
+                            menu: 'blinkcontrol',
+                            // menu: 'baudRate',
+                            defaultValue: 0
+                        },
+                        COLOR: {
+                            // type: ArgumentType.COLOR
+                            type: ArgumentType.STRING,
+                            menu: 'blinkcolorcontrol',
+                            // menu: 'baudRate',
+                            defaultValue: 0
+                        }
+                    }
+                    // func: 'yawCcw'
+                },
+                // {
+                //     opcode: 'setSpeed',
+                //     blockType: BlockType.COMMAND,
+
+                //     text: formatMessage({
+                //         id: 'multirotor.setSpeed',
+                //         default: '速度 [SPEED]cm/s'
+                //     }),
+                //     arguments: {
+                //         SPEED: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 20
+                //         }
+                //     }
+                //     // func: 'setSpeed'
+                // },
+                {
+                    opcode: 'getBatteryVoltage',
                     blockType: BlockType.REPORTER,
 
                     text: formatMessage({
-                        id: 'multirotor.getBattery',
-                        default: '电量?'
+                        id: 'multirotor.getBatteryVoltage',
+                        default: '目前电压'
                     })
                     // func: 'getBattery'
                 },
@@ -733,11 +890,43 @@ class Scratch3MutiRotorBlocks {
                         default: '获取航向角度值(°)'
                     })
                     // func: 'getYaw'
+                },
+                {
+                    opcode: 'getLastMessageReceived',
+                    blockType: BlockType.REPORTER,
+                    text: formatMessage({
+                        default: '获取最新消息'
+                        // default: 'get last incoming message: [MESSAGE]',
+                    })
+                    // arguments: {
+                    //     MESSAGE: {
+                    //         type: ArgumentType.STRING,
+                    //     }
+                    // }
+                },
+                {
+                    opcode: 'getStatus',
+                    blockType: BlockType.REPORTER,
+                    text: formatMessage({
+                        default: '获取执行状态'
+                        // default: 'get last incoming message: [MESSAGE]',
+                    })
+                    // arguments: {
+                    //     MESSAGE: {
+                    //         type: ArgumentType.STRING,
+                    //     }
+                    // }
                 }
             ],
             menus: {
                 serialPorts: this._formatMenu(mxsSerialPort),
-                baudRate: this._formatMenu(mxsBaudRate)
+                baudRate: this._formatMenu(mxsBaudRate),
+
+                lasercontrol: this._formatMenu(laserStatus),
+                throwingcontrol: this._formatMenu(throwingStatus),
+                photocontrol: this._formatMenu(['Close', 'one']),
+                blinkcontrol: this._formatMenu(blinkLedStatus),
+                blinkcolorcontrol: this._formatMenu(blinkLedColor)
 
             }
             // translation_map: {
@@ -764,8 +953,8 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[0] = SendCMDList.OPEN_PORT;
         // byteCommands[0] = args.PORT;
         // byteCommands[1] = args.Baudrate;
-        byteCommands[0] = parseInt(args.PORT);
-        byteCommands[1] = parseInt(args.Baudrate);
+        byteCommands[0] = parseInt(args.PORT, 10);
+        byteCommands[1] = parseInt(args.Baudrate, 10);
 
         const cmd = this.generateCommand(
             HEAD_CMD.HEAD_SERIAL,
@@ -785,7 +974,7 @@ class Scratch3MutiRotorBlocks {
         const byteCommands = []; // a compound command
 
         // byteCommands[0] = SendCMDList.CLOSE_PORT;
-        byteCommands[0] = parseInt(args.PORT);
+        byteCommands[0] = parseInt(args.PORT, 10);
 
         const cmd = this.generateCommand(
             HEAD_CMD.HEAD_SERIAL,
@@ -822,7 +1011,7 @@ class Scratch3MutiRotorBlocks {
         command[2] = CMD_Type.CMD_EXECUTION;
         command[3] = 0x46; // 指令序号  (暂时保留)
 
-        command[4] = CmdSequence >> 8 & 0xFF; // 高八位
+        command[4] = (CmdSequence >> 8) & 0xFF; // 高八位
 
         command[5] = CmdSequence & 0xFF; // 低八位
 
@@ -834,7 +1023,7 @@ class Scratch3MutiRotorBlocks {
         command = command.concat(byteCommands);
         let tmpsum = 0;
 
-        for (i = 0; i < command.length; i++) {
+        for (let i = 0; i < command.length; i++) {
             tmpsum += command[i];
         }
 
@@ -872,10 +1061,10 @@ class Scratch3MutiRotorBlocks {
         // }
 
 
-        byteCommands[0] = SECONDS >> 3 * 8 & 0xFF;
-        byteCommands[1] = SECONDS >> 2 * 8 & 0xFF;
-        byteCommands[2] = SECONDS >> 1 * 8 & 0xFF;
-        byteCommands[3] = SECONDS >> 0 * 8 & 0xFF; // byteCommands[2] = 3;
+        byteCommands[0] = (SECONDS >> 3 * 8) & 0xFF;
+        byteCommands[1] = (SECONDS >> 2 * 8) & 0xFF;
+        byteCommands[2] = (SECONDS >> 1 * 8) & 0xFF;
+        byteCommands[3] = (SECONDS >> 0 * 8) & 0xFF; // byteCommands[2] = 3;
 
         const cmd = this.generateCommand(
             HEAD_CMD.HEAD_MULTIROTOR,
@@ -1060,10 +1249,10 @@ class Scratch3MutiRotorBlocks {
         }
         byteCommands[0] = FLY_DIRECTION.DIRECTION_DOWN;
 
-        byteCommands[1] = SPEED >> 8 & 0xFF; // 高八位
+        byteCommands[1] = (SPEED >> 8) & 0xFF; // 高八位
         byteCommands[2] = SPEED & 0xFF; // 低八位
 
-        byteCommands[3] = HIGHT >> 8 & 0xFF; // 高八位
+        byteCommands[3] = (HIGHT >> 8) & 0xFF; // 高八位
         byteCommands[4] = HIGHT & 0xFF; // 低八位
 
         const cmd = this.generateCommand(
@@ -1102,10 +1291,10 @@ class Scratch3MutiRotorBlocks {
         }
         byteCommands[0] = FLY_DIRECTION.DIRECTION_FORWARD;
 
-        byteCommands[1] = SPEED >> 8 & 0xFF; // 高八位
+        byteCommands[1] = (SPEED >> 8) & 0xFF; // 高八位
         byteCommands[2] = SPEED & 0xFF; // 低八位
 
-        byteCommands[3] = LENGTH >> 8 & 0xFF; // 高八位
+        byteCommands[3] = (LENGTH >> 8) & 0xFF; // 高八位
         byteCommands[4] = LENGTH; // 低八位
 
         const cmd = this.generateCommand(
@@ -1144,10 +1333,10 @@ class Scratch3MutiRotorBlocks {
         }
         byteCommands[0] = FLY_DIRECTION.DIRECTION_BACKWARD;
 
-        byteCommands[1] = SPEED >> 8 & 0xFF; // 高八位
+        byteCommands[1] = (SPEED >> 8) & 0xFF; // 高八位
         byteCommands[2] = SPEED & 0xFF; // 低八位
 
-        byteCommands[3] = LENGTH >> 8 & 0xFF; // 高八位
+        byteCommands[3] = (LENGTH >> 8) & 0xFF; // 高八位
         byteCommands[4] = LENGTH & 0xFF; // 低八位
 
         const cmd = this.generateCommand(
@@ -1186,10 +1375,10 @@ class Scratch3MutiRotorBlocks {
         }
         byteCommands[0] = FLY_DIRECTION.DIRECTION_LEFT;
 
-        byteCommands[1] = SPEED >> 8 & 0xFF; // 高八位
+        byteCommands[1] = (SPEED >> 8) & 0xFF; // 高八位
         byteCommands[2] = SPEED & 0xFF; // 低八位
 
-        byteCommands[3] = LENGTH >> 8 & 0xFF; // 高八位
+        byteCommands[3] = (LENGTH >> 8) & 0xFF; // 高八位
         byteCommands[4] = LENGTH & 0xFF; // 低八位
 
         const cmd = this.generateCommand(
@@ -1228,10 +1417,10 @@ class Scratch3MutiRotorBlocks {
         }
         byteCommands[0] = FLY_DIRECTION.DIRECTION_RIGHT;
 
-        byteCommands[1] = SPEED >> 8 & 0xFF; // 高八位
+        byteCommands[1] = (SPEED >> 8) & 0xFF; // 高八位
         byteCommands[2] = SPEED & 0xFF; // 低八位
 
-        byteCommands[3] = LENGTH >> 8 & 0xFF; // 高八位
+        byteCommands[3] = (LENGTH >> 8) & 0xFF; // 高八位
         byteCommands[4] = LENGTH & 0xFF; // 低八位
 
         const cmd = this.generateCommand(
@@ -1270,10 +1459,10 @@ class Scratch3MutiRotorBlocks {
         }
         byteCommands[0] = FLY_DIRECTION.DIRECTION_CLOCKWISE;
 
-        byteCommands[1] = DEGRPS >> 8 & 0xFF; // 高八位
+        byteCommands[1] = (DEGRPS >> 8) & 0xFF; // 高八位
         byteCommands[2] = DEGRPS & 0xFF; // 低八位
 
-        byteCommands[3] = ANGLE >> 8 & 0xFF; // 高八位
+        byteCommands[3] = (ANGLE >> 8) & 0xFF; // 高八位
         byteCommands[4] = ANGLE & 0xFF; // 低八位
 
         const cmd = this.generateCommand(
@@ -1314,10 +1503,10 @@ class Scratch3MutiRotorBlocks {
         }
         byteCommands[0] = FLY_DIRECTION.DIRECTION_COUNTER_CLOCKWISE;
 
-        byteCommands[1] = DEGRPS >> 8 & 0xFF; // 高八位
+        byteCommands[1] = (DEGRPS >> 8) & 0xFF; // 高八位
         byteCommands[2] = DEGRPS & 0xFF; // 低八位
 
-        byteCommands[3] = ANGLE >> 8 & 0xFF;
+        byteCommands[3] = (ANGLE >> 8) & 0xFF;
         byteCommands[4] = ANGLE & 0xFF;
 
         const cmd = this.generateCommand(
@@ -1334,12 +1523,272 @@ class Scratch3MutiRotorBlocks {
         //    this.ws.send(cmd.toString('ascii'));
     }
 
-    setSpeed(args) {
-        // const cmd = `speed ${args.LEN}`;
-        // this.write(cmd);
+    ctllaser(args) {
+        console.log(args.OPR);
+        const byteCommands = []; // a compound command
+        const laser = args.OPR;
+
+        if (laser == 0) {
+            byteCommands[0] = OPR_LASER.LASER_CLOSE;
+        } else if (laser == 1) {
+            byteCommands[0] = OPR_LASER.LASER_OPEN;
+        } else if (laser == 2) {
+            byteCommands[0] = OPR_LASER.LASER_BLINK;
+        }
+
+        const cmd = this.generateCommand(
+            HEAD_CMD.HEAD_MULTIROTOR,
+            CMD_DIRECTION.SEND,
+            CMD_Type.CMD_MODULE,
+            CMD_METHOD.OPR_TYPE_LASER,
+
+            byteCommands,
+        );
+
+        console.log(cmd);
+        this._sendWsData(cmd);
+
     }
 
-    getBattery(args) {
+    ctlthrowing(args) {
+        console.log(args.OPR);
+        const byteCommands = []; // a compound command
+        const throws = args.OPR;
+
+        if (throws == 0) {
+            byteCommands[0] = OPR_THROWING.THROWING_CLOSE;
+        } else if (throws >= 1 && throws <= 10) {
+            byteCommands[0] = parseInt(throws, 10);
+        } else {
+            byteCommands[0] = 1;
+        }
+
+        const cmd = this.generateCommand(
+            HEAD_CMD.HEAD_MULTIROTOR,
+            CMD_DIRECTION.SEND,
+            CMD_Type.CMD_MODULE,
+            CMD_METHOD.OPR_TYPE_THROWING,
+
+            byteCommands,
+        );
+
+        console.log(cmd);
+        this._sendWsData(cmd);
+
+    }
+
+    ctltakephoto(args) {
+        console.log(args.OPR);
+        const byteCommands = []; // a compound command
+        const photo = args.OPR;
+
+        if (photo == 0) {
+            byteCommands[0] = IMG_TRANS.IMG_CLOSE;
+        } else if (photo == 1) {
+            byteCommands[0] = parseInt(photo, 10);
+        } else {
+            byteCommands[0] = 0;
+            // ctlvideo()
+        }
+
+        const cmd = this.generateCommand(
+            HEAD_CMD.HEAD_MULTIROTOR,
+            CMD_DIRECTION.SEND,
+            CMD_Type.CMD_MODULE,
+            CMD_METHOD.OPR_TYPE_IMGTRANS,
+
+            byteCommands,
+        );
+
+        console.log(cmd);
+        this._sendWsData(cmd);
+
+    }
+
+    ctlvideo(args) {
+        console.log(args.OPR);
+        const byteCommands = []; // a compound command
+        const takevideos = args.OPR;
+
+        if (takevideos <= 0) {
+            byteCommands[0] = IMG_TRANS.IMG_CLOSE;
+        } else {
+            byteCommands[0] = 0x02;
+            byteCommands[1] = parseInt(takevideos, 10);
+        }
+
+        const cmd = this.generateCommand(
+            HEAD_CMD.HEAD_MULTIROTOR,
+            CMD_DIRECTION.SEND,
+            CMD_Type.CMD_MODULE,
+            CMD_METHOD.OPR_TYPE_IMGTRANS,
+
+            byteCommands,
+        );
+
+        console.log(cmd);
+        this._sendWsData(cmd);
+
+    }
+
+    ctlblinkled(args) {
+        console.log(args.OPR);
+        console.log(args.COLOR); // #516053 rgb形式的数值
+        const byteCommands = []; // a compound command
+
+        const ledStatus = parseInt(args.OPR);
+        const ledColor = parseInt(args.COLOR);
+
+        switch (ledColor) {
+
+            // case BLINKING_LED_COLOR.CLOSE:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.CLOSE;
+            //     break;
+            // }
+            // case BLINKING_LED_COLOR.RED:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.RED;
+            //     break;
+            // }
+            // case BLINKING_LED_COLOR.ORANGE:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.ORANGE;
+            //     break;
+            // }
+            // case BLINKING_LED_COLOR.YELLOW:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.YELLOW;
+            //     break;
+            // }
+            // case BLINKING_LED_COLOR.GREEN:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.GREEN;
+            //     break;
+            // }
+            // case BLINKING_LED_COLOR.CYAN:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.CYAN;
+            //     break;
+            // }
+            // case BLINKING_LED_COLOR.BLUE:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.BLUE;
+            //     break;
+            // }
+            // case BLINKING_LED_COLOR.PURPLE:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.PURPLE;
+            //     break;
+            // }
+            // case BLINKING_LED_COLOR.WHITE:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.WHITE;
+            //     break;
+            // }
+            // default:
+            // {
+            //     byteCommands[0] = BLINKING_LED_COLOR.CLOSE;
+            //     break;
+            // }
+
+            case (0):
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.CLOSE);
+                    break;
+                }
+            case (1):
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.RED);
+                    break;
+                }
+            case (2):
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.ORANGE);
+                    break;
+                }
+            case (3):
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.YELLOW);
+                    break;
+                }
+            case (4):
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.GREEN);
+                    break;
+                }
+            case (5):
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.CYAN);
+                    break;
+                }
+            case (6):
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.BLUE);
+                    break;
+                }
+            case (7):
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.PURPLE);
+                    break;
+                }
+            case (8):
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.WHITE);
+                    break;
+                }
+            default:
+                {
+                    byteCommands[0] = parseInt(BLINKING_LED_COLOR.CLOSE);
+                    break;
+                }
+        }
+
+        switch (ledStatus) {
+            case BLINKING_LED_STATUS.CLOSE:
+                {
+                    byteCommands[1] = BLINKING_LED_STATUS.CLOSE;
+                    break;
+                }
+            case BLINKING_LED_STATUS.LIGHT:
+                {
+                    byteCommands[1] = BLINKING_LED_STATUS.LIGHT;
+                    break;
+                }
+            case BLINKING_LED_STATUS.BLINK_SLOW:
+                {
+                    byteCommands[1] = BLINKING_LED_STATUS.BLINK_SLOW;
+                    break;
+                }
+            case BLINKING_LED_STATUS.BLINK_FAST:
+                {
+                    byteCommands[1] = BLINKING_LED_STATUS.BLINK_FAST;
+                    break;
+                }
+            default:
+                {
+                    byteCommands[1] = BLINKING_LED_STATUS.CLOSE;
+                    break;
+                }
+        }
+        const cmd = this.generateCommand(
+            HEAD_CMD.HEAD_MULTIROTOR,
+            CMD_DIRECTION.SEND,
+            CMD_Type.CMD_MODULE,
+            CMD_METHOD.OPR_TYPE_BLINKLED,
+
+            byteCommands,
+        );
+
+        console.log(cmd);
+        this._sendWsData(cmd);
+    }
+    // setSpeed (args) {
+    //     // const cmd = `speed ${args.LEN}`;
+    //     // this.write(cmd);
+    // }
+
+    getBatteryVoltage() {
         // const cmd = 'battery?';
         // return this.report(cmd).then(ret => this.parseCmd(ret));
         return PWR_VOLTAGE;
@@ -1375,14 +1824,20 @@ class Scratch3MutiRotorBlocks {
         return YAW / 100;
     }
 
-    parseCmd(msg) {
-        msg = msg.toString();
-        if (isNumber(msg)) {
-            return parseInt(msg, 10);
-        }
-        return msg;
+    getStatus() {
+        let cmdstatus = '';
+        cmdstatus = RotorCmdId + RotorCmdStatus;
 
+        return cmdstatus;
     }
+
+    // parseCmd (msg) {
+    //     msg = msg.toString();
+    //     if (isNumber(msg)) {
+    //         return parseInt(msg, 10);
+    //     }
+    //     return msg;
+    // }
 
     /* openSocket(), set ping timings and connection status */
     _openSocket() {
@@ -1431,10 +1886,10 @@ class Scratch3MutiRotorBlocks {
 
     /**
      *
-     * @param {*} head
-     * @param {*} directionlow
-     * @param {*} type
-     * @param {*} methods
+     * @param {number} head  The Command head
+     * @param {number} directionlow
+     * @param {number} type
+     * @param {number} methods
      * @param {array} byteCommands
      */
     generateCommand(head, directionlow, type, methods, byteCommands) {
@@ -1447,7 +1902,7 @@ class Scratch3MutiRotorBlocks {
         command[2] = type;
         command[3] = methods; // 指令序号  (暂时保留)
 
-        command[4] = CmdSequence >> 8 & 0xFF; // 高八位
+        command[4] = (CmdSequence >> 8) & 0xFF; // 高八位
         command[5] = CmdSequence & 0xFF; // 低八位
 
         CmdSequence++; // 如果指令超限,将指令序号归零
@@ -1464,7 +1919,7 @@ class Scratch3MutiRotorBlocks {
         command = command.concat(byteCommands);
         let tmpsum = 0;
 
-        for (i = 0; i < command.length; i++) {
+        for (let i = 0; i < command.length; i++) {
             tmpsum += command[i];
         }
 
@@ -1513,14 +1968,14 @@ class Scratch3MutiRotorBlocks {
     // 字符串转16进制
 
     _sendWsData(cmd) {
-        var mils = millis();
+        let mils = millis();
         // if (mils - this.lastMillis > 15) {
         //     this.lastMillis = mils;
         //     // this.ws.send(JSON.stringify(cmd));
 
         //     console.log(cmd);
         // }
-        
+
         // const hexValInput = cmd;
         const byteArray = new Uint8Array(cmd.length);
         let i;
@@ -1530,7 +1985,7 @@ class Scratch3MutiRotorBlocks {
         // for
         for (i = 0; i < cmd.length; i++) {
             byteArray[i] = cmd[i];
-            console.log(`byteArray[ ${i}]:  ${byteArray[i]} `);
+            // console.log(`byteArray[ ${i}]:  ${byteArray[i]} `);
         }
 
 
@@ -1538,15 +1993,15 @@ class Scratch3MutiRotorBlocks {
         //     /*功能代码*/
 
         //     setTimeout(repeat, 1000);
-        //   }, 1000);  
-        mils = Date.now();            
+        //   }, 1000);
+        mils = Date.now();
         for (i = 65535; i > 0; i--) {
-            for (j = 120; j > 0; j--) {
-            }
+            // eslint-disable-next-line no-empty
+            for (let j = 120; j > 0; j--) {}
         }
         // this.lastMillis = Date.now()-mils;
-        console.log(mils, Date.now(),  Date.now()- mils);
-        console.log('延时发送'+ byteArray);
+        console.log(mils, Date.now(), Date.now() - mils);
+        console.log(`延时发送${byteArray}`);
         this.ws.send(byteArray);
     }
 
@@ -1563,12 +2018,12 @@ class Scratch3MutiRotorBlocks {
     /* get called whenever there is new Data from the ws server. */
     _getWsData(msg) {
         strDataReceved = '';
-        dataArray = '';
+        let dataArray = '';
         // dataArray = JSON.parse(msg.data);
 
         dataArray = (msg.data);
 
-        strDataArray = new Uint8Array(1024);
+        let strDataArray = new Uint8Array(1024);
         // dataArray = (msg.data);
 
         strDataReceved = dataArray.toString();
@@ -1586,13 +2041,14 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_GESTURE:
                         {
-                            if (parseInt(strDataArray[3]) == 12) {
+                            if (parseInt(strDataArray[3], 16) === 12) {
                                 ROLL = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 PITCH = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                                 YAW = parseInt((strDataArray[8].toString(16) + strDataArray[9].toString(16)), 16);
+                                // eslint-disable-next-line max-len
                                 ALT_USE = parseInt((strDataArray[10].toString(16) + strDataArray[11].toString(16) + strDataArray[12].toString(16) + strDataArray[13].toString(16)), 16);
                                 FLY_MODEL = parseInt((strDataArray[14].toString(16) + strDataArray[7].toString(16)), 16);
-                                ARMED = parseInt((strDataArray[15].toString(16), 16));
+                                ARMED = parseInt(strDataArray[15].toString(16), 16);
 
                                 // console.log('strDataArray[4] ' + strDataArray[4]);
                                 // console.log('strDataArray[5] ' + strDataArray[5]);
@@ -1603,7 +2059,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_GESTURE_DATA:
                         {
-                            if (parseInt(strDataArray[3]) == 18) {
+                            if (parseInt(strDataArray[3], 16) === 18) {
                                 ACC_X = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 ACC_Y = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                                 ACC_Z = parseInt((strDataArray[8].toString(16) + strDataArray[9].toString(16)), 16);
@@ -1624,7 +2080,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_CTLDATA:
                         {
-                            if (parseInt(strDataArray[3]) == 23) {
+                            if (parseInt(strDataArray[3], 16) === 23) {
                                 CTL_THR = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 CTL_YAW = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                                 CTL_ROL = parseInt((strDataArray[8].toString(16) + strDataArray[9].toString(16)), 16);
@@ -1641,7 +2097,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_GESTURE_SENSOR_STATE:
                         {
-                            if (parseInt(strDataArray[3]) == 14) {
+                            if (parseInt(strDataArray[3], 16) === 14) {
                                 STATE_ACC = parseInt((strDataArray[4].toString(16)), 16);
                                 STATE_GYRO = parseInt((strDataArray[5].toString(16)), 16);
                                 STATE_MAG = parseInt((strDataArray[6].toString(16)), 16);
@@ -1659,7 +2115,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_POWER:
                         {
-                            if (parseInt(strDataArray[3]) == 4) {
+                            if (parseInt(strDataArray[3], 16) === 4) {
                                 PWR_VOLTAGE = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 PWR_CURRENT = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                             }
@@ -1667,14 +2123,14 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_MOTOR_PWM:
                         {
-                            if (parseInt(strDataArray[3]) == 2) {
+                            if (parseInt(strDataArray[3], 16) === 2) {
                                 MOTOR_PWM = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                             }
                             break;
                         }
                     case DATA_TYPE.MSG_ALT_SENSOR_DATA:
                         {
-                            if (parseInt(strDataArray[3]) == 12) {
+                            if (parseInt(strDataArray[3], 16) === 12) {
                                 ALT_BAR = parseInt((strDataArray[10].toString(16) + strDataArray[11].toString(16) + strDataArray[12].toString(16) + strDataArray[13].toString(16)), 16);
                                 ALT_SONOR = parseInt((strDataArray[10].toString(16) + strDataArray[11].toString(16) + strDataArray[12].toString(16) + strDataArray[13].toString(16)), 16);
                                 ALT_LASER = parseInt((strDataArray[10].toString(16) + strDataArray[11].toString(16) + strDataArray[12].toString(16) + strDataArray[13].toString(16)), 16);
@@ -1683,7 +2139,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_FLOW_DATA:
                         {
-                            if (parseInt(strDataArray[3]) == 7) {
+                            if (parseInt(strDataArray[3], 16) === 7) {
                                 FLOW_EFFECIENT = parseInt((strDataArray[4].toString(16)), 16);
                                 FLOW_X = parseInt((strDataArray[5].toString(16) + strDataArray[6].toString(16)), 16);
                                 FLOW_Y = parseInt((strDataArray[7].toString(16) + strDataArray[8].toString(16)), 16);
@@ -1693,7 +2149,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_POSTION_DATA:
                         {
-                            if (parseInt(strDataArray[3]) == 6) {
+                            if (parseInt(strDataArray[3], 16) === 6) {
                                 POS_X = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 POS_Y = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                                 POS_Z = parseInt((strDataArray[8].toString(16) + strDataArray[9].toString(16)), 16);
@@ -1706,6 +2162,259 @@ class Scratch3MutiRotorBlocks {
                         }
                 }
             }
+        } else if (strDataArray[0] === HEAD_CMD.HEAD_MULTIROTOR) {
+            if (strDataArray[1] === CMD_DIRECTION.RECEIVE) {
+                switch (strDataArray[2]) {
+                    case CMD_Type.CMD_MOTION:
+                        {
+                            // 水平运动指令
+                            switch (strDataArray[3]) {
+                                case CMD_METHOD.MOVE_TYPE_LRFB:
+                                    {
+                                        RotorCmdId = '水平运动';
+                                        switch (strDataArray[7]) {
+                                            case CMD_Status.CMD_EXECUTE_ERROR:
+                                                {
+                                                    RotorCmdStatus = 'error';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTEING:
+                                                {
+                                                    RotorCmdStatus = 'extcuting';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTE_OVER:
+                                                {
+                                                    RotorCmdStatus = 'over';
+                                                    break;
+                                                }
+                                            default:
+                                                {
+                                                    break;
+                                                }
+                                        }
+                                        break;
+                                    }
+                                case CMD_METHOD.MOVE_TYPE_UPDOWN:
+                                    {
+                                        RotorCmdId = '升降运动';
+                                        switch (strDataArray[7]) {
+                                            case CMD_Status.CMD_EXECUTE_ERROR:
+                                                {
+                                                    RotorCmdStatus = 'error';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTEING:
+                                                {
+                                                    RotorCmdStatus = 'extcuting';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTE_OVER:
+                                                {
+                                                    RotorCmdStatus = 'over';
+                                                    break;
+                                                }
+                                            default:
+                                                {
+                                                    break;
+                                                }
+                                        }
+                                        break;
+                                    }
+                                case CMD_METHOD.MOVE_TYPE_TAKEOFFHIGHT:
+                                    {
+                                        RotorCmdId = '起飞命令';
+                                        switch (strDataArray[7]) {
+                                            case CMD_Status.CMD_EXECUTE_ERROR:
+                                                {
+                                                    RotorCmdStatus = 'error';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTEING:
+                                                {
+                                                    RotorCmdStatus = 'extcuting';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTE_OVER:
+                                                {
+                                                    RotorCmdStatus = 'over';
+                                                    break;
+                                                }
+                                            default:
+                                                {
+                                                    break;
+                                                }
+                                        }
+                                        break;
+                                    }
+                                case CMD_METHOD.MOVE_TYPE_LAND:
+                                    {
+                                        RotorCmdId = '起飞命令';
+                                        switch (strDataArray[7]) {
+                                            case CMD_Status.CMD_EXECUTE_ERROR:
+                                                {
+                                                    RotorCmdStatus = 'error';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTEING:
+                                                {
+                                                    RotorCmdStatus = 'extcuting';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTE_OVER:
+                                                {
+                                                    RotorCmdStatus = 'over';
+                                                    break;
+                                                }
+                                            default:
+                                                {
+                                                    break;
+                                                }
+                                        }
+                                        break;
+                                    }
+                                case CMD_METHOD.MOVE_TYPE_YAW_ANGLE:
+                                    {
+                                        RotorCmdId = '旋转命令';
+                                        switch (strDataArray[7]) {
+                                            case CMD_Status.CMD_EXECUTE_ERROR:
+                                                {
+                                                    RotorCmdStatus = 'error';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTEING:
+                                                {
+                                                    RotorCmdStatus = 'extcuting';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTE_OVER:
+                                                {
+                                                    RotorCmdStatus = 'over';
+                                                    break;
+                                                }
+                                            default:
+                                                {
+                                                    break;
+                                                }
+                                        }
+                                        break;
+                                    }
+                            }
+                            break;
+                        }
+                    case CMD_Type.CMD_MODULE:
+                        {
+                            switch (strDataArray[3]){
+                                case CMD_METHOD.OPR_TYPE_LASER:
+                                {
+                                    RotorCmdId = '激光器';
+                                    switch (strDataArray[7]) {
+                                        case CMD_Status.CMD_EXECUTE_ERROR:
+                                            {
+                                                RotorCmdStatus = 'error';
+                                                break;
+                                            }
+                                        case CMD_Status.CMD_EXECUTEING:
+                                            {
+                                                RotorCmdStatus = 'extcuting';
+                                                break;
+                                            }
+                                        case CMD_Status.CMD_EXECUTE_OVER:
+                                            {
+                                                RotorCmdStatus = 'over';
+                                                break;
+                                            }
+                                        default:
+                                            {
+                                                break;
+                                            }
+                                    }
+                                    break;
+                                }
+                            case CMD_METHOD.OPR_TYPE_THROWING:
+                                {
+                                    RotorCmdId = '抛投器';
+                                    switch (strDataArray[7]) {
+                                        case CMD_Status.CMD_EXECUTE_ERROR:
+                                            {
+                                                RotorCmdStatus = 'error';
+                                                break;
+                                            }
+                                        case CMD_Status.CMD_EXECUTEING:
+                                            {
+                                                RotorCmdStatus = 'extcuting';
+                                                break;
+                                            }
+                                        case CMD_Status.CMD_EXECUTE_OVER:
+                                            {
+                                                RotorCmdStatus = 'over';
+                                                break;
+                                            }
+                                        default:
+                                            {
+                                                break;
+                                            }
+                                    }
+                                    break;
+                                }
+                            case CMD_METHOD.OPR_TYPE_IMGTRANS:
+                                {
+                                    RotorCmdId = '图传操作';
+                                    switch (strDataArray[7]) {
+                                        case CMD_Status.CMD_EXECUTE_ERROR:
+                                            {
+                                                RotorCmdStatus = 'error';
+                                                break;
+                                            }
+                                        case CMD_Status.CMD_EXECUTEING:
+                                            {
+                                                RotorCmdStatus = 'extcuting';
+                                                break;
+                                            }
+                                        case CMD_Status.CMD_EXECUTE_OVER:
+                                            {
+                                                RotorCmdStatus = 'over';
+                                                break;
+                                            }
+                                        default:
+                                            {
+                                                break;
+                                            }
+                                    }
+                                    break;
+                                }
+                            case CMD_METHOD.OPR_TYPE_BLINKLED:
+                                {
+                                    RotorCmdId = '彩色LED';
+                                    switch (strDataArray[7]) {
+                                        case CMD_Status.CMD_EXECUTE_ERROR:
+                                            {
+                                                RotorCmdStatus = 'error';
+                                                break;
+                                            }
+                                        case CMD_Status.CMD_EXECUTEING:
+                                            {
+                                                RotorCmdStatus = 'extcuting';
+                                                break;
+                                            }
+                                        case CMD_Status.CMD_EXECUTE_OVER:
+                                            {
+                                                RotorCmdStatus = 'over';
+                                                break;
+                                            }
+                                        default:
+                                            {
+                                                break;
+                                            }
+                                    }
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                }
+            }
+
         }
 
         return strDataReceved;
