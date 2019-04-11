@@ -81,6 +81,9 @@ const CMD_Type = {
     // 外部挂载模块
     CMD_MODULE: 0xA4,
     CMD_MATH: 0xA5,
+
+    // 下位机发来的接收指令反馈
+    CMD_FEEDBACK: 0xAF,
     CMD_EXECUTION: 0xFC
 };
 
@@ -308,6 +311,7 @@ let STATE_MONOCULAR;
 let STATE_BINOCULAR;
 
 let CmdSequence = 0; // 指令序号
+let CmdDownSequence = 0;  //Robot返回收到的指令数量
 
 let PWR_VOLTAGE;
 let PWR_CURRENT;
@@ -1984,7 +1988,7 @@ class Scratch3MutiRotorBlocks {
         const byteArray = new Uint8Array(cmd.length);
         let i;
         // byteArray = cmd;
-        console.log(`cmd.length : ${cmd.length}, cmd.data : ${cmd[0]} `);
+        // console.log(`cmd.length : ${cmd.length}, cmd.data : ${cmd[0]} `);
 
         // for
         for (i = 0; i < cmd.length; i++) {
@@ -2004,9 +2008,14 @@ class Scratch3MutiRotorBlocks {
             for (let j = 120; j > 0; j--) {}
         }
         // this.lastMillis = Date.now()-mils;
-        console.log(mils, Date.now(), Date.now() - mils);
-        console.log(`延时发送${byteArray}`);
-        this.ws.send(byteArray);
+        // console.log(mils, Date.now(), Date.now() - mils);
+        // console.log(`延时发送${byteArray}`);
+        
+        if(CmdDownSequence != CmdSequence)
+        {
+            this.ws.send(byteArray);
+        }
+        
     }
 
     // tohex (data) {
@@ -2173,9 +2182,9 @@ class Scratch3MutiRotorBlocks {
                 }
             }
         } else if (strDataArray[0] === HEAD_CMD.HEAD_MULTIROTOR) {
-            console.log('收到执行状态数据1')
+            // console.log('收到执行状态数据1')
             if (strDataArray[1] === CMD_DIRECTION.RECEIVE) {
-                console.log('收到执行状态数据2')
+                // console.log('收到执行状态数据2')
                 switch (strDataArray[2]) {
                     case CMD_Type.CMD_MOTION:
                         {
@@ -2422,6 +2431,13 @@ class Scratch3MutiRotorBlocks {
                                     break;
                                 }
                             }
+                            break;
+                        }
+                    case CMD_Type.CMD_FEEDBACK:
+                        {
+                            CmdDownSequence =  parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
+                            console.log(`CmdDownSequence ${CmdDownSequence}`);
+                            // if( == CmdDownSequence)   
                             break;
                         }
                 }
