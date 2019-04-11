@@ -33,7 +33,7 @@ const mxsSerialPort = ['None', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', '
 
 const mxsBaudRate = ['115200', '57600', '38400', '19200', '9600', '4800'];
 
-const laserStatus = ['Open', 'Close', 'Blink'];
+const laserStatus = ['Close', 'Open', 'Blink'];
 
 const throwingStatus = ['Close', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 
@@ -1612,7 +1612,11 @@ class Scratch3MutiRotorBlocks {
 
         if (takevideos <= 0) {
             byteCommands[0] = IMG_TRANS.IMG_CLOSE;
-        } else {
+        } else if(takevideos>255){
+            byteCommands[0] = 0x02;
+            takevideos = 255;
+            byteCommands[1] = parseInt(takevideos, 10);
+        }else{
             byteCommands[0] = 0x02;
             byteCommands[1] = parseInt(takevideos, 10);
         }
@@ -1828,7 +1832,7 @@ class Scratch3MutiRotorBlocks {
         let cmdstatus = '';
         cmdstatus = RotorCmdId + RotorCmdStatus;
 
-        return cmdstatus;
+        return cmdstatus.toString();
     }
 
     // parseCmd (msg) {
@@ -2169,7 +2173,9 @@ class Scratch3MutiRotorBlocks {
                 }
             }
         } else if (strDataArray[0] === HEAD_CMD.HEAD_MULTIROTOR) {
+            console.log('收到执行状态数据1')
             if (strDataArray[1] === CMD_DIRECTION.RECEIVE) {
+                console.log('收到执行状态数据2')
                 switch (strDataArray[2]) {
                     case CMD_Type.CMD_MOTION:
                         {
@@ -2255,7 +2261,7 @@ class Scratch3MutiRotorBlocks {
                                     }
                                 case CMD_METHOD.MOVE_TYPE_LAND:
                                     {
-                                        RotorCmdId = '起飞命令';
+                                        RotorCmdId = '降落命令';
                                         switch (strDataArray[7]) {
                                             case CMD_Status.CMD_EXECUTE_ERROR:
                                                 {
@@ -2365,7 +2371,7 @@ class Scratch3MutiRotorBlocks {
                                 }
                             case CMD_METHOD.OPR_TYPE_IMGTRANS:
                                 {
-                                    RotorCmdId = '图传操作';
+                                    RotorCmdId = '相机操作';
                                     switch (strDataArray[7]) {
                                         case CMD_Status.CMD_EXECUTE_ERROR:
                                             {
