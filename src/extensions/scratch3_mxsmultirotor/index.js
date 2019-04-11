@@ -2033,15 +2033,20 @@ class Scratch3MutiRotorBlocks {
         // console.log(`strDataArray:${strDataArray}`);
 
         if (strDataArray[0] === HEAD_CMD.HEAD_DATA) {
+            // console.log('帧头数据正确：0xAA' )
             if (strDataArray[1] === CMD_DIRECTION.DATA_UP) {
+                // console.log('数据方向正确' );
                 switch (strDataArray[2]) {
                     case DATA_TYPE.MSG_REV:
                         {
+                            // console.log('无数据' );
                             break;
                         }
                     case DATA_TYPE.MSG_GESTURE:
                         {
-                            if (parseInt(strDataArray[3], 16) === 12) {
+                            // console.log('姿态数据解析' );
+                            if (parseInt(strDataArray[3]) == 12) {
+
                                 ROLL = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 PITCH = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                                 YAW = parseInt((strDataArray[8].toString(16) + strDataArray[9].toString(16)), 16);
@@ -2050,6 +2055,7 @@ class Scratch3MutiRotorBlocks {
                                 FLY_MODEL = parseInt((strDataArray[14].toString(16) + strDataArray[7].toString(16)), 16);
                                 ARMED = parseInt(strDataArray[15].toString(16), 16);
 
+                                // console.log('姿态数据解析：'+ `ROLL ${strDataArray[3]}` );
                                 // console.log('strDataArray[4] ' + strDataArray[4]);
                                 // console.log('strDataArray[5] ' + strDataArray[5]);
                                 // console.log('ROLL角度： ' + ROLL);
@@ -2059,7 +2065,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_GESTURE_DATA:
                         {
-                            if (parseInt(strDataArray[3], 16) === 18) {
+                            if (parseInt(strDataArray[3]) == 18) {
                                 ACC_X = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 ACC_Y = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                                 ACC_Z = parseInt((strDataArray[8].toString(16) + strDataArray[9].toString(16)), 16);
@@ -2115,7 +2121,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_POWER:
                         {
-                            if (parseInt(strDataArray[3], 16) === 4) {
+                            if (parseInt(strDataArray[3]) == 4) {
                                 PWR_VOLTAGE = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 PWR_CURRENT = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                             }
@@ -2123,14 +2129,14 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_MOTOR_PWM:
                         {
-                            if (parseInt(strDataArray[3], 16) === 2) {
+                            if (parseInt(strDataArray[3]) == 2) {
                                 MOTOR_PWM = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                             }
                             break;
                         }
                     case DATA_TYPE.MSG_ALT_SENSOR_DATA:
                         {
-                            if (parseInt(strDataArray[3], 16) === 12) {
+                            if (parseInt(strDataArray[3]) == 12) {
                                 ALT_BAR = parseInt((strDataArray[10].toString(16) + strDataArray[11].toString(16) + strDataArray[12].toString(16) + strDataArray[13].toString(16)), 16);
                                 ALT_SONOR = parseInt((strDataArray[10].toString(16) + strDataArray[11].toString(16) + strDataArray[12].toString(16) + strDataArray[13].toString(16)), 16);
                                 ALT_LASER = parseInt((strDataArray[10].toString(16) + strDataArray[11].toString(16) + strDataArray[12].toString(16) + strDataArray[13].toString(16)), 16);
@@ -2139,7 +2145,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_FLOW_DATA:
                         {
-                            if (parseInt(strDataArray[3], 16) === 7) {
+                            if (parseInt(strDataArray[3]) == 7) {
                                 FLOW_EFFECIENT = parseInt((strDataArray[4].toString(16)), 16);
                                 FLOW_X = parseInt((strDataArray[5].toString(16) + strDataArray[6].toString(16)), 16);
                                 FLOW_Y = parseInt((strDataArray[7].toString(16) + strDataArray[8].toString(16)), 16);
@@ -2149,7 +2155,7 @@ class Scratch3MutiRotorBlocks {
                         }
                     case DATA_TYPE.MSG_POSTION_DATA:
                         {
-                            if (parseInt(strDataArray[3], 16) === 6) {
+                            if (parseInt(strDataArray[3]) == 6) {
                                 POS_X = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                                 POS_Y = parseInt((strDataArray[6].toString(16) + strDataArray[7].toString(16)), 16);
                                 POS_Z = parseInt((strDataArray[8].toString(16) + strDataArray[9].toString(16)), 16);
