@@ -995,6 +995,11 @@ class Scratch3MutiRotorBlocks {
 
 
     cmdsequencestart() {
+        
+        for (let i = 65535; i > 0; i--) {
+            // eslint-disable-next-line no-empty
+            for (let j = 100; j > 0; j--) {}
+        }
         CmdSequence = 0;
     }
 
