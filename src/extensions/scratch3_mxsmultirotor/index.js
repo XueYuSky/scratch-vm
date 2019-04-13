@@ -1038,9 +1038,9 @@ class Scratch3MutiRotorBlocks {
 
         command[6 + byteCommands.length + 1] = tmpsum & 0xFF; // 取低八位
 
-        console.log(command);
+        // console.log(command);
 
-        // this._sendWsData(command);
+         this._sendWsData(command);
     }
 
     hovering(args) {
@@ -1084,7 +1084,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands
         ); // console.log(cmd.toString('hex'));
 
-        console.log(cmd);
+        // console.log(cmd);
 
         this._sendWsData(cmd);
     }
@@ -1104,7 +1104,7 @@ class Scratch3MutiRotorBlocks {
             CMD_METHOD.SERIAL_READ_DATA,
             byteCommands,
         );
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
     }
 
@@ -1186,7 +1186,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
         // console.log(cmd.toString('hex'));
         // console.log(cmd);
@@ -1232,7 +1232,7 @@ class Scratch3MutiRotorBlocks {
         );
         // console.log(cmd.toString('hex'));
         // eslint-disable-next-line no-console
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
     }
 
@@ -1273,7 +1273,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd.toString('hex'));
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
         // this.ws.send(cmd.toString('ascii'));
     }
@@ -1315,7 +1315,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd.toString('hex'));
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
         // this.ws.send(cmd.toString('ascii'));
     }
@@ -1357,7 +1357,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd.toString('hex'));
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
         //    this.ws.send(cmd.toString('ascii'));
     }
@@ -1399,7 +1399,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd.toString('hex'));
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
         // this.ws.send(cmd.toString('ascii'));
     }
@@ -1441,7 +1441,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd.toString('hex'));
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
         // this.ws.send(cmd.toString('ascii'));
     }
@@ -1483,7 +1483,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd.toString('hex'));
-        console.log(cmd);
+        // console.log(cmd);
         // this.ws.send(JSON.stringify(cmd));
         // // this.ws.send(cmd.toString('ascii'));
 
@@ -1527,7 +1527,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd.toString('hex'));
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
         //    this.ws.send(cmd.toString('ascii'));
     }
@@ -1554,7 +1554,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
 
     }
@@ -1581,7 +1581,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
 
     }
@@ -1609,7 +1609,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
 
     }
@@ -1639,7 +1639,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
 
     }
@@ -1793,7 +1793,7 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        console.log(cmd);
+        // console.log(cmd);
         this._sendWsData(cmd);
     }
     // setSpeed (args) {
@@ -2019,6 +2019,7 @@ class Scratch3MutiRotorBlocks {
         if(CmdDownSequence != CmdSequence)
         {
             this.ws.send(byteArray);
+            console.log(`已发送:${byteArray}`);
         }
         
     }
