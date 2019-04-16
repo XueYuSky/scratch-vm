@@ -14,8 +14,8 @@ const formatMessage = require('format-message');
 const Base64Util = require('../../util/base64-util');
 // const Serial = require('serialport')
 // const MXSLink = 'ws://localhost:8081';
-const MXSLink = 'ws://192.168.4.1:8000';
-
+// const MXSLink = 'ws://192.168.4.1:8000';
+let MXSLink = 'ws://192.168.4.1:8000';
 
 /**
  * base64 inmage produce : https://www.base64-image.de/
@@ -32,6 +32,8 @@ const menuIconURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAA
 const mxsSerialPort = ['None', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7'];
 
 const mxsBaudRate = ['115200', '57600', '38400', '19200', '9600', '4800'];
+
+const connOperation = ['Open', 'Close'];
 
 const laserStatus = ['Close', 'Open', 'Blink'];
 
@@ -311,7 +313,7 @@ let STATE_MONOCULAR;
 let STATE_BINOCULAR;
 
 let CmdSequence = 0; // 指令序号
-let CmdDownSequence = 0;  //Robot返回收到的指令数量
+let CmdDownSequence = 0; //Robot返回收到的指令数量
 
 let PWR_VOLTAGE;
 let PWR_CURRENT;
@@ -427,20 +429,7 @@ class Scratch3MutiRotorBlocks {
         // RGB1 = Cast.toRgbColorObject('#000000');
         // RGB2 = Cast.toRgbColorObject('#000000');
 
-        this.ws = new WebSocket(MXSLink);
-        this.ws.binaryType = 'arraybuffer';
 
-        this.ws.onmessage = this._getWsData;
-        this.ws.onopen = this._openSocket;
-        this.ws.onclose = this._closeSocket;
-        this.ws.onerror = this._errorSocket;
-
-
-        this._sendWsData = this._sendWsData.bind(this);
-        this._getWsData = this._getWsData.bind(this);
-        this._openSocket = this._openSocket.bind(this);
-        this._closeSocket = this._closeSocket.bind(this);
-        this._errorSocket = this._errorSocket.bind(this);
     }
 
 
@@ -456,12 +445,18 @@ class Scratch3MutiRotorBlocks {
             menuIconURI: menuIconURI,
             blockIconURI: blockIconURI,
             blocks: [{
-                    opcode: 'openSeialPort',
+                    opcode: 'operateSeialPort',
                     blockType: BlockType.COMMAND,
                     text: formatMessage({
-                        default: '打开 [PORT] 波特率 [Baudrate]'
+                        default: '[OPR]串口[PORT] 波特率 [Baudrate]'
                     }),
                     arguments: {
+                        OPR: {
+                            type: ArgumentType.STRING,
+                            menu: 'connectoperation',
+                            defaultValue: 0
+
+                        },
                         PORT: {
                             type: ArgumentType.STRING,
                             menu: 'serialPorts',
@@ -476,19 +471,45 @@ class Scratch3MutiRotorBlocks {
                 },
 
                 {
-                    opcode: 'closePort',
+                    opcode: 'operateWS',
                     blockType: BlockType.COMMAND,
                     text: formatMessage({
-                        default: '关闭串口[PORT]'
+                        default: '[OPR] Websocket[WS] 端口号[PORT]'
                     }),
                     arguments: {
-                        PORT: {
+                        OPR: {
                             type: ArgumentType.STRING,
-                            menu: 'serialPorts',
+                            menu: 'connectoperation',
                             defaultValue: 0
+
+                        },
+                        WS: {
+                            type: ArgumentType.STRING,
+                            // menu: 'serialPorts',
+                            defaultValue: '192.168.4.1'
+                        },
+                        PORT: {
+                            type: ArgumentType.NUMBER,
+                            // menu: 'baudRate',
+                            defaultValue: 8000
                         }
                     }
                 },
+
+                // {
+                //     opcode: 'closePort',
+                //     blockType: BlockType.COMMAND,
+                //     text: formatMessage({
+                //         default: '关闭串口[PORT]'
+                //     }),
+                //     arguments: {
+                //         PORT: {
+                //             type: ArgumentType.STRING,
+                //             menu: 'serialPorts',
+                //             defaultValue: 0
+                //         }
+                //     }
+                // },
                 {
                     opcode: 'unlock',
                     blockType: BlockType.COMMAND,
@@ -925,7 +946,7 @@ class Scratch3MutiRotorBlocks {
             menus: {
                 serialPorts: this._formatMenu(mxsSerialPort),
                 baudRate: this._formatMenu(mxsBaudRate),
-
+                connectoperation: this._formatMenu(connOperation),
                 lasercontrol: this._formatMenu(laserStatus),
                 throwingcontrol: this._formatMenu(throwingStatus),
                 photocontrol: this._formatMenu(['Close', 'one']),
@@ -949,53 +970,145 @@ class Scratch3MutiRotorBlocks {
 
     }
 
-    openSeialPort(args) {
-
+    operateSeialPort(args) {
+        console.log(args.OPR);
         console.log(args.PORT);
-        const byteCommands = []; // a compound command
 
-        // byteCommands[0] = SendCMDList.OPEN_PORT;
-        // byteCommands[0] = args.PORT;
-        // byteCommands[1] = args.Baudrate;
-        byteCommands[0] = parseInt(args.PORT, 10);
-        byteCommands[1] = parseInt(args.Baudrate, 10);
+        try{
+            if (args.OPR == 0) {
+                const byteCommands = []; // a compound command
+    
+                // byteCommands[0] = SendCMDList.OPEN_PORT;
+                // byteCommands[0] = args.PORT;
+                // byteCommands[1] = args.Baudrate;
+                byteCommands[0] = parseInt(args.PORT, 10);
+                byteCommands[1] = parseInt(args.Baudrate, 10);
+    
+                const cmd = this.generateCommand(
+                    HEAD_CMD.HEAD_SERIAL,
+                    CMD_DIRECTION.SEND,
+                    CMD_Type.SERIAL_SEND_CMD,
+                    CMD_METHOD.SERIAL_OPEN_PORT,
+    
+                    byteCommands,
+                );
+                console.log('open serial!');
+                this.ws.send(JSON.stringify(cmd));
+                return args.PORT;
+            } else {
+                const byteCommands = []; // a compound command
+    
+                // byteCommands[0] = SendCMDList.CLOSE_PORT;
+                byteCommands[0] = parseInt(args.PORT, 10);
+    
+                const cmd = this.generateCommand(
+                    HEAD_CMD.HEAD_SERIAL,
+                    CMD_DIRECTION.SEND,
+                    CMD_Type.SERIAL_SEND_CMD,
+                    CMD_METHOD.SERIAL_CLOSE_PORT,
+    
+                    byteCommands,
+                );
+                console.log('close serial!');
+                this.ws.send(JSON.stringify(cmd));
+                return args.PORT;
+            }
+        }
+        catch
+        {
+            console.log('连接出错！请运行MXSLink!');
+            alert('连接出错！请运行MXSLink!')
+        }
 
-        const cmd = this.generateCommand(
-            HEAD_CMD.HEAD_SERIAL,
-            CMD_DIRECTION.SEND,
-            CMD_Type.SERIAL_SEND_CMD,
-            CMD_METHOD.SERIAL_OPEN_PORT,
 
-            byteCommands,
-        );
-        this.ws.send(JSON.stringify(cmd));
-
-        return args.PORT;
+        
     }
 
-    closePort(args) {
-        // console.log(args.PORT);
-        const byteCommands = []; // a compound command
+    // closePort(args) {
+    //     // console.log(args.PORT);
+    //     const byteCommands = []; // a compound command
 
-        // byteCommands[0] = SendCMDList.CLOSE_PORT;
-        byteCommands[0] = parseInt(args.PORT, 10);
+    //     // byteCommands[0] = SendCMDList.CLOSE_PORT;
+    //     byteCommands[0] = parseInt(args.PORT, 10);
 
-        const cmd = this.generateCommand(
-            HEAD_CMD.HEAD_SERIAL,
-            CMD_DIRECTION.SEND,
-            CMD_Type.SERIAL_SEND_CMD,
-            CMD_METHOD.SERIAL_CLOSE_PORT,
+    //     const cmd = this.generateCommand(
+    //         HEAD_CMD.HEAD_SERIAL,
+    //         CMD_DIRECTION.SEND,
+    //         CMD_Type.SERIAL_SEND_CMD,
+    //         CMD_METHOD.SERIAL_CLOSE_PORT,
 
-            byteCommands,
-        );
-        this.ws.send(JSON.stringify(cmd));
-        console.log('close wsconnection!');
-        // this.ws.close();
+    //         byteCommands,
+    //     );
+    //     this.ws.send(JSON.stringify(cmd));
+    //     console.log('close wsconnection!');
+    //     // this.ws.close();
+    // }
+
+    operateWS(args) {
+        console.log(args.OPR);
+        console.log(args.WS);
+        console.log(args.PORT);
+        MXSLink = `ws://${args.WS}:${args.PORT} `;
+
+        if(args.OPR == 0)
+        {
+            try{
+                this.ws = new WebSocket(MXSLink);
+                this.ws.binaryType = 'arraybuffer';
+        
+                this.ws.onmessage = this._getWsData;
+                this.ws.onopen = this._openSocket;
+                this.ws.onclose = this._closeSocket;
+                this.ws.onerror = this._errorSocket;
+        
+        
+                this._sendWsData = this._sendWsData.bind(this);
+                this._getWsData = this._getWsData.bind(this);
+                this._openSocket = this._openSocket.bind(this);
+                this._closeSocket = this._closeSocket.bind(this);
+                this._errorSocket = this._errorSocket.bind(this);
+    
+                console.log('MXSWebsocket has been opend!');
+            }
+            catch(error){
+                console.log(error);
+            }
+        }else
+        {
+            try{
+                this.ws.close();
+                console.log('MXSWebsocket has been Closed!');   
+            }
+            catch(err){
+                console.log(err);
+            }           
+        }
     }
+
+        /* openSocket(), set ping timings and connection status */
+        _openSocket() {
+            //  console.log('WebSocket connection: ', this.ws.readyState);
+            console.log('WebSocket connection Opened');
+        }
+        /* closeSocket() */
+        _closeSocket() {
+            console.log('WebSocket  connection Closed!');
+        }
+        /* errorSocket() */
+        _errorSocket(err) {
+            console.log(err);
+            try{
+                this.ws.close();
+            }
+            catch(error){
+                console.log(error);
+            }
+            
+        }
 
 
     cmdsequencestart() {
-        
+
         for (let i = 65535; i > 0; i--) {
             // eslint-disable-next-line no-empty
             for (let j = 100; j > 0; j--) {}
@@ -1039,8 +1152,15 @@ class Scratch3MutiRotorBlocks {
         command[6 + byteCommands.length + 1] = tmpsum & 0xFF; // 取低八位
 
         // console.log(command);
+        try{
+            this._sendWsData(command);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
 
-         this._sendWsData(command);
+        
     }
 
     hovering(args) {
@@ -1086,7 +1206,13 @@ class Scratch3MutiRotorBlocks {
 
         // console.log(cmd);
 
-        this._sendWsData(cmd);
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     getMessageCMD() {
@@ -1105,7 +1231,13 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd);
-        this._sendWsData(cmd);
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     getLastMessageReceived() {
@@ -1154,7 +1286,13 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         console.log(cmd);
-        this._sendWsData(cmd);
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     land(args) {
@@ -1187,11 +1325,13 @@ class Scratch3MutiRotorBlocks {
         );
 
         // console.log(cmd);
-        this._sendWsData(cmd);
-        // console.log(cmd.toString('hex'));
-        // console.log(cmd);
-        // this.ws.send(JSON.stringify(cmd));
-        // this.ws.send(cmd.toString('ascii'));
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     flyUp(args) {
@@ -1231,9 +1371,13 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd.toString('hex'));
-        // eslint-disable-next-line no-console
-        // console.log(cmd);
-        this._sendWsData(cmd);
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     flyDown(args) {
@@ -1273,9 +1417,13 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
         // console.log(cmd.toString('hex'));
-        // console.log(cmd);
-        this._sendWsData(cmd);
-        // this.ws.send(cmd.toString('ascii'));
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     flyFw(args) {
@@ -1358,8 +1506,13 @@ class Scratch3MutiRotorBlocks {
         );
         // console.log(cmd.toString('hex'));
         // console.log(cmd);
-        this._sendWsData(cmd);
-        //    this.ws.send(cmd.toString('ascii'));
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     flyLeft(args) {
@@ -1400,8 +1553,13 @@ class Scratch3MutiRotorBlocks {
         );
         // console.log(cmd.toString('hex'));
         // console.log(cmd);
-        this._sendWsData(cmd);
-        // this.ws.send(cmd.toString('ascii'));
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     flyRight(args) {
@@ -1442,8 +1600,13 @@ class Scratch3MutiRotorBlocks {
         );
         // console.log(cmd.toString('hex'));
         // console.log(cmd);
-        this._sendWsData(cmd);
-        // this.ws.send(cmd.toString('ascii'));
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     yawCw(args) {
@@ -1485,9 +1648,13 @@ class Scratch3MutiRotorBlocks {
         // console.log(cmd.toString('hex'));
         // console.log(cmd);
         // this.ws.send(JSON.stringify(cmd));
-        // // this.ws.send(cmd.toString('ascii'));
-
-        this._sendWsData(cmd);
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     yawCcw(args) {
@@ -1528,8 +1695,13 @@ class Scratch3MutiRotorBlocks {
         );
         // console.log(cmd.toString('hex'));
         // console.log(cmd);
-        this._sendWsData(cmd);
-        //    this.ws.send(cmd.toString('ascii'));
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     ctllaser(args) {
@@ -1554,8 +1726,13 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        // console.log(cmd);
-        this._sendWsData(cmd);
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
 
     }
 
@@ -1581,8 +1758,13 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        // console.log(cmd);
-        this._sendWsData(cmd);
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
 
     }
 
@@ -1609,9 +1791,13 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        // console.log(cmd);
-        this._sendWsData(cmd);
-
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
 
     ctlvideo(args) {
@@ -1621,11 +1807,11 @@ class Scratch3MutiRotorBlocks {
 
         if (takevideos <= 0) {
             byteCommands[0] = IMG_TRANS.IMG_CLOSE;
-        } else if(takevideos>255){
+        } else if (takevideos > 255) {
             byteCommands[0] = 0x02;
             takevideos = 255;
             byteCommands[1] = parseInt(takevideos, 10);
-        }else{
+        } else {
             byteCommands[0] = 0x02;
             byteCommands[1] = parseInt(takevideos, 10);
         }
@@ -1639,8 +1825,13 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        // console.log(cmd);
-        this._sendWsData(cmd);
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
 
     }
 
@@ -1793,8 +1984,13 @@ class Scratch3MutiRotorBlocks {
             byteCommands,
         );
 
-        // console.log(cmd);
-        this._sendWsData(cmd);
+        try{
+            this._sendWsData(cmd);
+        }
+        catch{
+            console.log('ws连接出错');
+            alert('ws连接出错');
+        }
     }
     // setSpeed (args) {
     //     // const cmd = `speed ${args.LEN}`;
@@ -1852,20 +2048,7 @@ class Scratch3MutiRotorBlocks {
     //     return msg;
     // }
 
-    /* openSocket(), set ping timings and connection status */
-    _openSocket() {
-        //  console.log('WebSocket connection: ', this.ws.readyState);
-        console.log('WebSocket connection Opened');
-    }
-    /* closeSocket() */
-    _closeSocket() {
-        console.log('WebSocket  connection Closed!');
-    }
-    /* errorSocket() */
-    _errorSocket(err) {
-        console.log(err);
-        this.ws.close();
-    }
+
 
     /**
      * Formats menus into a format suitable for block menus, and loading previously
@@ -2015,13 +2198,12 @@ class Scratch3MutiRotorBlocks {
         // this.lastMillis = Date.now()-mils;
         // console.log(mils, Date.now(), Date.now() - mils);
         // console.log(`延时发送${byteArray}`);
-        
-        if(CmdDownSequence != CmdSequence)
-        {
+
+        if (CmdDownSequence != CmdSequence) {
             this.ws.send(byteArray);
             console.log(`已发送:${byteArray}`);
         }
-        
+
     }
 
     // tohex (data) {
@@ -2331,117 +2513,117 @@ class Scratch3MutiRotorBlocks {
                         }
                     case CMD_Type.CMD_MODULE:
                         {
-                            switch (strDataArray[3]){
+                            switch (strDataArray[3]) {
                                 case CMD_METHOD.OPR_TYPE_LASER:
-                                {
-                                    RotorCmdId = '激光器';
-                                    switch (strDataArray[7]) {
-                                        case CMD_Status.CMD_EXECUTE_ERROR:
-                                            {
-                                                RotorCmdStatus = 'error';
-                                                break;
-                                            }
-                                        case CMD_Status.CMD_EXECUTEING:
-                                            {
-                                                RotorCmdStatus = 'extcuting';
-                                                break;
-                                            }
-                                        case CMD_Status.CMD_EXECUTE_OVER:
-                                            {
-                                                RotorCmdStatus = 'over';
-                                                break;
-                                            }
-                                        default:
-                                            {
-                                                break;
-                                            }
+                                    {
+                                        RotorCmdId = '激光器';
+                                        switch (strDataArray[7]) {
+                                            case CMD_Status.CMD_EXECUTE_ERROR:
+                                                {
+                                                    RotorCmdStatus = 'error';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTEING:
+                                                {
+                                                    RotorCmdStatus = 'extcuting';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTE_OVER:
+                                                {
+                                                    RotorCmdStatus = 'over';
+                                                    break;
+                                                }
+                                            default:
+                                                {
+                                                    break;
+                                                }
+                                        }
+                                        break;
                                     }
-                                    break;
-                                }
-                            case CMD_METHOD.OPR_TYPE_THROWING:
-                                {
-                                    RotorCmdId = '抛投器';
-                                    switch (strDataArray[7]) {
-                                        case CMD_Status.CMD_EXECUTE_ERROR:
-                                            {
-                                                RotorCmdStatus = 'error';
-                                                break;
-                                            }
-                                        case CMD_Status.CMD_EXECUTEING:
-                                            {
-                                                RotorCmdStatus = 'extcuting';
-                                                break;
-                                            }
-                                        case CMD_Status.CMD_EXECUTE_OVER:
-                                            {
-                                                RotorCmdStatus = 'over';
-                                                break;
-                                            }
-                                        default:
-                                            {
-                                                break;
-                                            }
+                                case CMD_METHOD.OPR_TYPE_THROWING:
+                                    {
+                                        RotorCmdId = '抛投器';
+                                        switch (strDataArray[7]) {
+                                            case CMD_Status.CMD_EXECUTE_ERROR:
+                                                {
+                                                    RotorCmdStatus = 'error';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTEING:
+                                                {
+                                                    RotorCmdStatus = 'extcuting';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTE_OVER:
+                                                {
+                                                    RotorCmdStatus = 'over';
+                                                    break;
+                                                }
+                                            default:
+                                                {
+                                                    break;
+                                                }
+                                        }
+                                        break;
                                     }
-                                    break;
-                                }
-                            case CMD_METHOD.OPR_TYPE_IMGTRANS:
-                                {
-                                    RotorCmdId = '相机操作';
-                                    switch (strDataArray[7]) {
-                                        case CMD_Status.CMD_EXECUTE_ERROR:
-                                            {
-                                                RotorCmdStatus = 'error';
-                                                break;
-                                            }
-                                        case CMD_Status.CMD_EXECUTEING:
-                                            {
-                                                RotorCmdStatus = 'extcuting';
-                                                break;
-                                            }
-                                        case CMD_Status.CMD_EXECUTE_OVER:
-                                            {
-                                                RotorCmdStatus = 'over';
-                                                break;
-                                            }
-                                        default:
-                                            {
-                                                break;
-                                            }
+                                case CMD_METHOD.OPR_TYPE_IMGTRANS:
+                                    {
+                                        RotorCmdId = '相机操作';
+                                        switch (strDataArray[7]) {
+                                            case CMD_Status.CMD_EXECUTE_ERROR:
+                                                {
+                                                    RotorCmdStatus = 'error';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTEING:
+                                                {
+                                                    RotorCmdStatus = 'extcuting';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTE_OVER:
+                                                {
+                                                    RotorCmdStatus = 'over';
+                                                    break;
+                                                }
+                                            default:
+                                                {
+                                                    break;
+                                                }
+                                        }
+                                        break;
                                     }
-                                    break;
-                                }
-                            case CMD_METHOD.OPR_TYPE_BLINKLED:
-                                {
-                                    RotorCmdId = '彩色LED';
-                                    switch (strDataArray[7]) {
-                                        case CMD_Status.CMD_EXECUTE_ERROR:
-                                            {
-                                                RotorCmdStatus = 'error';
-                                                break;
-                                            }
-                                        case CMD_Status.CMD_EXECUTEING:
-                                            {
-                                                RotorCmdStatus = 'extcuting';
-                                                break;
-                                            }
-                                        case CMD_Status.CMD_EXECUTE_OVER:
-                                            {
-                                                RotorCmdStatus = 'over';
-                                                break;
-                                            }
-                                        default:
-                                            {
-                                                break;
-                                            }
+                                case CMD_METHOD.OPR_TYPE_BLINKLED:
+                                    {
+                                        RotorCmdId = '彩色LED';
+                                        switch (strDataArray[7]) {
+                                            case CMD_Status.CMD_EXECUTE_ERROR:
+                                                {
+                                                    RotorCmdStatus = 'error';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTEING:
+                                                {
+                                                    RotorCmdStatus = 'extcuting';
+                                                    break;
+                                                }
+                                            case CMD_Status.CMD_EXECUTE_OVER:
+                                                {
+                                                    RotorCmdStatus = 'over';
+                                                    break;
+                                                }
+                                            default:
+                                                {
+                                                    break;
+                                                }
+                                        }
+                                        break;
                                     }
-                                    break;
-                                }
                             }
                             break;
                         }
                     case CMD_Type.CMD_FEEDBACK:
                         {
-                            CmdDownSequence =  parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
+                            CmdDownSequence = parseInt((strDataArray[4].toString(16) + strDataArray[5].toString(16)), 16);
                             console.log(`CmdDownSequence ${CmdDownSequence}`);
                             // if( == CmdDownSequence)   
                             break;
