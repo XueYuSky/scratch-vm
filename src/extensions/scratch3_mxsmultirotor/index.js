@@ -1516,7 +1516,7 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[4] = HIGHT & 0xFF; // 低八位
 
         if (METHOD == 0) {
-            args.UNINT = '厘米(CM)';
+            // args.UNINT = '厘米(CM)';
             byteCommands[3] = MOVE_CTL.DISTANCE; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = HIGHT >> 8 & 0xFF; // 高八位
@@ -1524,7 +1524,8 @@ class Scratch3MutiRotorBlocks {
             byteCommands[6] = 0 >> 8 & 0xFF; // 高八位
             byteCommands[7] = 0 & 0xFF; // 低八位
         } else {
-            args.UNINT = '秒(S)';
+            // args.UNINT = '秒(S)';
+            HIGHT = HIGHT * 1000;
             byteCommands[3] = MOVE_CTL.TIME; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = 0 >> 8 & 0xFF; // 高八位
@@ -1620,7 +1621,7 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[4] = HIGHT & 0xFF; // 低八位
 
         if (METHOD == 0) {
-            args.UNINT = '厘米(CM)';
+            // args.UNINT = '厘米(CM)';
             byteCommands[3] = MOVE_CTL.DISTANCE; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = HIGHT >> 8 & 0xFF; // 高八位
@@ -1628,7 +1629,9 @@ class Scratch3MutiRotorBlocks {
             byteCommands[6] = 0 >> 8 & 0xFF; // 高八位
             byteCommands[7] = 0 & 0xFF; // 低八位
         } else {
-            args.UNINT = '秒(S)';
+            // args.UNINT = '秒(S)';
+            HIGHT = HIGHT * 1000;
+
             byteCommands[3] = MOVE_CTL.TIME; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = 0 >> 8 & 0xFF; // 高八位
@@ -1684,7 +1687,8 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[4] = HIGHT & 0xFF; // 低八位
 
         if (METHOD == 0) {
-            args.UNINT = '厘米(CM)';
+            // args.UNINT = '厘米(CM)';
+            
             byteCommands[3] = MOVE_CTL.DISTANCE; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = HIGHT >> 8 & 0xFF; // 高八位
@@ -1692,7 +1696,8 @@ class Scratch3MutiRotorBlocks {
             byteCommands[6] = 0 >> 8 & 0xFF; // 高八位
             byteCommands[7] = 0 & 0xFF; // 低八位
         } else {
-            args.UNINT = '秒(S)';
+            // args.UNINT = '秒(S)';
+            HIGHT = HIGHT * 1000;
             byteCommands[3] = MOVE_CTL.TIME; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = 0 >> 8 & 0xFF; // 高八位
@@ -1748,7 +1753,7 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[4] = LENGTH; // 低八位
 
         if (METHOD == 0) {
-            args.UNINT = '厘米(CM)';
+            // args.UNINT = '厘米(CM)';
             byteCommands[3] = MOVE_CTL.DISTANCE; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = LENGTH >> 8 & 0xFF; // 高八位
@@ -1756,7 +1761,8 @@ class Scratch3MutiRotorBlocks {
             byteCommands[6] = 0 >> 8 & 0xFF; // 高八位
             byteCommands[7] = 0 & 0xFF; // 低八位
         } else {
-            args.UNINT = '秒(S)';
+            // args.UNINT = '秒(S)';
+            LENGTH = LENGTH * 1000;
             byteCommands[3] = MOVE_CTL.TIME; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = 0 >> 8 & 0xFF; // 高八位
@@ -1814,7 +1820,7 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[4] = LENGTH & 0xFF; // 低八位
 
         if (METHOD == 0) {
-            args.UNINT = '厘米(CM)';
+            // args.UNINT = '厘米(CM)';
             byteCommands[3] = MOVE_CTL.DISTANCE; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = LENGTH >> 8 & 0xFF; // 高八位
@@ -1822,7 +1828,8 @@ class Scratch3MutiRotorBlocks {
             byteCommands[6] = 0 >> 8 & 0xFF; // 高八位
             byteCommands[7] = 0 & 0xFF; // 低八位
         } else {
-            args.UNINT = '秒(S)';
+            // args.UNINT = '秒(S)';
+            LENGTH = LENGTH * 1000;
             byteCommands[3] = MOVE_CTL.TIME; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = 0 >> 8 & 0xFF; // 高八位
@@ -1879,7 +1886,7 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[4] = LENGTH & 0xFF; // 低八位
 
         if (METHOD == 0) {
-            args.UNINT = '厘米(CM)';
+            // args.UNINT = '厘米(CM)';
             byteCommands[3] = MOVE_CTL.DISTANCE; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = LENGTH >> 8 & 0xFF; // 高八位
@@ -1887,7 +1894,8 @@ class Scratch3MutiRotorBlocks {
             byteCommands[6] = 0 >> 8 & 0xFF; // 高八位
             byteCommands[7] = 0 & 0xFF; // 低八位
         } else {
-            args.UNINT = '秒(S)';
+            // args.UNINT = '秒(S)';
+            LENGTH = LENGTH * 1000;
             byteCommands[3] = MOVE_CTL.TIME; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = 0 >> 8 & 0xFF; // 高八位
@@ -1944,7 +1952,7 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[4] = LENGTH & 0xFF; // 低八位
 
         if (METHOD == 0) {
-            args.UNINT = '厘米(CM)';
+            // args.UNINT = '厘米(CM)';
             byteCommands[3] = MOVE_CTL.DISTANCE; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = LENGTH >> 8 & 0xFF; // 高八位
@@ -1952,7 +1960,8 @@ class Scratch3MutiRotorBlocks {
             byteCommands[6] = 0 >> 8 & 0xFF; // 高八位
             byteCommands[7] = 0 & 0xFF; // 低八位
         } else {
-            args.UNINT = '秒(S)';
+            // args.UNINT = '秒(S)';
+            LENGTH = LENGTH * 1000;
             byteCommands[3] = MOVE_CTL.TIME; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = 0 >> 8 & 0xFF; // 高八位
@@ -2009,7 +2018,7 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[4] = ANGLE & 0xFF; // 低八位
 
         if (METHOD == 0) {
-            args.UNINT = '厘米(CM)';
+            // args.UNINT = '厘米(CM)';
             byteCommands[3] = MOVE_CTL.DISTANCE; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = ANGLE >> 8 & 0xFF; // 高八位
@@ -2017,7 +2026,8 @@ class Scratch3MutiRotorBlocks {
             byteCommands[6] = 0 >> 8 & 0xFF; // 高八位
             byteCommands[7] = 0 & 0xFF; // 低八位
         } else {
-            args.UNINT = '秒(S)';
+            // args.UNINT = '秒(S)';
+            ANGLE = ANGLE * 1000;
             byteCommands[3] = MOVE_CTL.TIME; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = 0 >> 8 & 0xFF; // 高八位
@@ -2075,7 +2085,7 @@ class Scratch3MutiRotorBlocks {
         // byteCommands[4] = ANGLE & 0xFF;
 
         if (METHOD == 0) {
-            args.UNINT = '厘米(CM)';
+            // args.UNINT = '厘米(CM)';
             byteCommands[3] = MOVE_CTL.DISTANCE; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = ANGLE >> 8 & 0xFF; // 高八位
@@ -2083,7 +2093,8 @@ class Scratch3MutiRotorBlocks {
             byteCommands[6] = 0 >> 8 & 0xFF; // 高八位
             byteCommands[7] = 0 & 0xFF; // 低八位
         } else {
-            args.UNINT = '秒(S)';
+            // args.UNINT = '秒(S)';
+            ANGLE = ANGLE * 1000;
             byteCommands[3] = MOVE_CTL.TIME; // 高八位
             // byteCommands[4] = HIGHT & 0xFF; // 低八位
             byteCommands[4] = 0 >> 8 & 0xFF; // 高八位
