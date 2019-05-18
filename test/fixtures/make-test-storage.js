@@ -1,7 +1,10 @@
 const ScratchStorage = require('scratch-storage');
 
-const ASSET_SERVER = 'https://cdn.assets.scratch.mit.edu/';
-const PROJECT_SERVER = 'https://cdn.projects.scratch.mit.edu/';
+// const ASSET_SERVER = 'https://cdn.assets.scratch.mit.edu/';
+
+// const PROJECT_SERVER = 'https://cdn.projects.scratch.mit.edu/';
+const ASSET_SERVER = 'http://localhost:3005/';
+const PROJECT_SERVER = 'http://localhost:4010/';
 
 /**
  * @param {Asset} asset - calculate a URL for this asset.

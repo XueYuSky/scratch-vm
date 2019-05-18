@@ -55,6 +55,8 @@ const Scratch = window.Scratch = window.Scratch || {};
 
 const ASSET_SERVER = 'https://cdn.assets.scratch.mit.edu/';
 const PROJECT_SERVER = 'https://cdn.projects.scratch.mit.edu/';
+// const ASSET_SERVER = 'http://localhost:3005/';
+// const PROJECT_SERVER = 'http://localhost:4010/';
 
 const SLOW = .1;
 
