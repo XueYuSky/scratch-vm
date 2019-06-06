@@ -961,6 +961,23 @@ class Scratch3MutiRotorBlocks {
                 // func: 'yawCcw'
             },
 
+            {
+                opcode: 'ctlsound2',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'multirotor.ctlsound2',
+                    default: '播放[STRING]消息'
+                }),
+                arguments: {
+                    STRING: {
+                        type: ArgumentType.STRING,
+                        // menu: 'movemthodes',
+                        defaultValue: ''
+                    }
+                }
+                // func: 'flyDown'
+            },
+
             // 液晶交互屏
             {
                 opcode: 'ctllcd',
@@ -2402,6 +2419,57 @@ class Scratch3MutiRotorBlocks {
         }
     }
 
+    ctlsound2 (args) {
+        console.log(args.STRING);
+        const byteCommands = []; // a compound command
+        const soundmethod = args.STRING;
+
+        // if (soundmethod.length >= 10) {
+        //     byteCommands[0] = OPR_MODULE.CLOSE;
+        // } else if (soundmethod >= 1 && soundmethod <= 10) {
+        //     byteCommands[0] = parseInt(soundmethod, 10);
+        // } else {
+        //     byteCommands[0] = 1;
+        // }
+        for (let i = 0; i < soundmethod.length; i++){
+            byteCommands[i] = soundmethod[i];
+        }
+
+        const cmdjson = {
+            // data: byteCommands
+            data: soundmethod
+        };
+
+        const cmd = this.generateCommand2(
+            HEAD_CMD.HEAD_MULTIROTOR,
+            CMD_DIRECTION.SEND,
+            CMD_Type.CMD_INTERACTIVE,
+            0x35,
+            // 此处空余两字节函数内部加序号     // byte[4] byte[5]
+            // 此处有一字节消息长度定义     // byte[6]
+            // cmdjson
+            JSON.stringify(cmdjson),
+        );
+
+        // console.log(cmd);
+        // console.log(`JSON.stringify :  ${JSON.stringify(cmd)}`);
+        // console.log(`${HEAD_CMD.HEAD_MULTIROTOR},${CMD_DIRECTION.SEND},${CMD_Type.CMD_INTERACTIVE},0x35, ${JSON.stringify(cmdjson)}`);
+        // console.log(cmdjson);
+        console.log(`JSON.stringify :  ${JSON.stringify(cmdjson)}`);
+        try {
+            // this.ws.send(cmd);
+            // this._sendWsData2(cmd);            
+            // this.ws.send(`${HEAD_CMD.HEAD_MULTIROTOR},${CMD_DIRECTION.SEND},${CMD_Type.CMD_INTERACTIVE},0x35, ${JSON.stringify(cmdjson)}`);  
+            // this._sendWsData2(cmd);          
+            this.ws.send(JSON.stringify(cmdjson));
+           
+        } catch {
+            console.log('ws连接出错');
+            // eslint-disable-next-line no-alert
+            alert('ws连接出错');
+        }
+    }
+
     ctllcd (args) {
         console.log(args.OPR);
         const byteCommands = []; // a compound command
@@ -2421,7 +2489,7 @@ class Scratch3MutiRotorBlocks {
             CMD_Type.CMD_INTERACTIVE,
             CMD_METHOD.OPR_TYPE_LCD,
             // 此处空余两字节函数内部加序号     // byte[4] byte[5]
-            // 此处有一字节消息长度定义     // byte[6]
+            // 此处有一字节消息长度定义         // byte[6]
             byteCommands,
         );
         console.log(cmd);
@@ -2785,8 +2853,51 @@ class Scratch3MutiRotorBlocks {
             tmpsum += command[i];
         }
 
+        // command[6 + byteCommands.length + 1] = tmpsum & 0xFF; // 取低八
         command[6 + byteCommands.length + 1] = tmpsum & 0xFF; // 取低八
+        CmdSequence++; // 如果指令超限,将指令序号归零
 
+        if (CmdSequence > 65535) {
+            CmdSequence = 0;
+        }
+        return command;
+    }
+
+    /**
+     *
+     * @param {number} head  The Command head
+     * @param {number} directionlow
+     * @param {number} type
+     * @param {number} methods
+     * @param {array} byteCommands
+     */
+    generateCommand2 (head, directionlow, type, methods, byteCommands) {
+        // Header (Bytes 0 - 6)
+        let command = []; // command[0] = HEAD_CMD.HEAD_SEND_HIGH;
+
+        command[0] = head;
+        command[1] = directionlow; // Calculate command length minus first two header bytes
+
+        command[2] = type;
+        command[3] = methods; // 指令序号  (暂时保留)
+
+        command[4] = (CmdSequence >> 8) & 0xFF; // 高八位
+        command[5] = CmdSequence & 0xFF; // 低八位
+
+        const len = byteCommands.length;
+        command[6] = len; // 消息长度，不包括前7字节
+        // Bytecodes (Bytes 7 - n)
+        // 第8---以后为发送的命令字节
+
+        command = command.concat(byteCommands);
+        let tmpsum = 0;
+
+        for (let i = 0; i < command.length; i++) {
+            tmpsum += command[i];
+        }
+
+        // command[6 + byteCommands.length + 1] = tmpsum & 0xFF; // 取低八
+        // command[6 + byteCommands.length + 1] = tmpsum & 0xFF; // 取低八
         CmdSequence++; // 如果指令超限,将指令序号归零
 
         if (CmdSequence > 65535) {
@@ -2852,7 +2963,50 @@ class Scratch3MutiRotorBlocks {
         // for
         for (i = 0; i < cmd.length; i++) {
             byteArray[i] = cmd[i];
-            // console.log(`byteArray[ ${i}]:  ${byteArray[i]} `);
+            console.log(`byteArray[ ${i}]:  ${byteArray[i]} `);
+        }
+
+
+        // setTimeout(function repeat() {
+        //     /*功能代码*/
+
+        //     setTimeout(repeat, 1000);
+        //   }, 1000);
+        mils = Date.now();
+        for (i = 65535; i > 0; i--) {
+            // eslint-disable-next-line no-empty
+            for (let j = 120; j > 0; j--) {}
+        }
+        // this.lastMillis = Date.now()-mils;
+        // console.log(mils, Date.now(), Date.now() - mils);
+        // console.log(`延时发送${byteArray}`);
+
+        if (CmdDownSequence != CmdSequence) {
+            this.ws.send(byteArray);
+            console.log(`已发送:${byteArray}`);
+        }
+
+    }
+
+    _sendWsData2 (cmd) {
+        let mils = millis();
+        // if (mils - this.lastMillis > 15) {
+        //     this.lastMillis = mils;
+        //     // this.ws.send(JSON.stringify(cmd));
+
+        //     console.log(cmd);
+        // }
+
+        // const hexValInput = cmd;
+        const byteArray = new String(cmd)
+        let i;
+        // byteArray = cmd;
+        // console.log(`cmd.length : ${cmd.length}, cmd.data : ${cmd[0]} `);
+
+        // for
+        for (i = 0; i < cmd.length; i++) {
+            // byteArray[i] = cmd[i];
+            console.log(`byteArray[ ${i}]:  ${byteArray[i]} `);
         }
 
 
