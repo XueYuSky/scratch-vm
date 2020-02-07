@@ -2440,16 +2440,16 @@ class Scratch3MutiRotorBlocks {
             data: soundmethod
         };
 
-        const cmd = this.generateCommand2(
-            HEAD_CMD.HEAD_MULTIROTOR,
-            CMD_DIRECTION.SEND,
-            CMD_Type.CMD_INTERACTIVE,
-            0x35,
-            // 此处空余两字节函数内部加序号     // byte[4] byte[5]
-            // 此处有一字节消息长度定义     // byte[6]
-            // cmdjson
-            JSON.stringify(cmdjson),
-        );
+        // const cmd = this.generateCommand2(
+        //     HEAD_CMD.HEAD_MULTIROTOR,
+        //     CMD_DIRECTION.SEND,
+        //     CMD_Type.CMD_INTERACTIVE,
+        //     0x35,
+        //     // 此处空余两字节函数内部加序号     // byte[4] byte[5]
+        //     // 此处有一字节消息长度定义     // byte[6]
+        //     // cmdjson
+        //     JSON.stringify(cmdjson),
+        // );
 
         // console.log(cmd);
         // console.log(`JSON.stringify :  ${JSON.stringify(cmd)}`);
@@ -2460,7 +2460,12 @@ class Scratch3MutiRotorBlocks {
             // this.ws.send(cmd);
             // this._sendWsData2(cmd);            
             // this.ws.send(`${HEAD_CMD.HEAD_MULTIROTOR},${CMD_DIRECTION.SEND},${CMD_Type.CMD_INTERACTIVE},0x35, ${JSON.stringify(cmdjson)}`);  
-            // this._sendWsData2(cmd);          
+            // this._sendWsData2(cmd);     
+            // mils = Date.now();
+            for (let i = 65535; i > 0; i--) {
+                // eslint-disable-next-line no-empty
+                for (let j = 120; j > 0; j--) {}
+            }     
             this.ws.send(JSON.stringify(cmdjson));
            
         } catch {
